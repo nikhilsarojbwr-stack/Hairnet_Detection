@@ -5,7 +5,7 @@ import tempfile
 import time
 from datetime import datetime
 import json
-
+from streamlit_webrtc import webrtc_streamer, VideoProcessorBase, RTCConfiguration
 import cv2
 import numpy as np
 import pandas as pd
@@ -19,7 +19,7 @@ import torch
 # ------------------------------
 # Configuration and Constants
 # ------------------------------
-MODEL_PATH = "best.pt"
+MODEL_PATH = "models/best.pt"
 OUTPUT_DIR = "outputs"
 IMAGE_OUTPUT_DIR = os.path.join(OUTPUT_DIR, "images")
 VIDEO_OUTPUT_DIR = os.path.join(OUTPUT_DIR, "videos")
@@ -923,46 +923,46 @@ def main():
                     })
                     st.session_state.stream_stats = {"total": 0, "hairnet": 0, "no_hairnet": 0, "frames": 0}
 
-       elif app_mode == "Webcam":
-    st.subheader("Live Webcam Detection")
-    st.warning("Allow camera access when prompted. Detection runs in real‑time.")
-    
-    from streamlit_webrtc import webrtc_streamer, VideoProcessorBase, RTCConfiguration
+        elif app_mode == "Webcam":
+            st.subheader("Live Webcam Detection")
+            st.warning("Allow camera access when prompted. Detection runs in real‑time.")
+            
+           
 
-    # Define a video processor that runs YOLO on each frame
-    class HairnetVideoProcessor(VideoProcessorBase):
-        def __init__(self, model, conf_threshold, iou_threshold):
-            self.model = model
-            self.conf_threshold = conf_threshold
-            self.iou_threshold = iou_threshold
+            # Define a video processor that runs YOLO on each frame
+            class HairnetVideoProcessor(VideoProcessorBase):
+                def __init__(self, model, conf_threshold, iou_threshold):
+                    self.model = model
+                    self.conf_threshold = conf_threshold
+                    self.iou_threshold = iou_threshold
 
-        def recv(self, frame):
-            # Convert frame to numpy array (BGR)
-            img = frame.to_ndarray(format="bgr24")
-            # Run inference
-            results = self.model(img, conf=self.conf_threshold, iou=self.iou_threshold, verbose=False)
-            # Annotate
-            annotated = annotate_image(img, results, self.conf_threshold)
-            # Return annotated frame
-            return frame.from_ndarray(annotated, format="bgr24")
+                def recv(self, frame):
+                    # Convert frame to numpy array (BGR)
+                    img = frame.to_ndarray(format="bgr24")
+                    # Run inference
+                    results = self.model(img, conf=self.conf_threshold, iou=self.iou_threshold, verbose=False)
+                    # Annotate
+                    annotated = annotate_image(img, results, self.conf_threshold)
+                    # Return annotated frame
+                    return frame.from_ndarray(annotated, format="bgr24")
 
-    # RTC configuration (TURN/STUN is optional for local webcam; we use default)
-    rtc_config = RTCConfiguration({"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]})
+            # RTC configuration (TURN/STUN is optional for local webcam; we use default)
+            rtc_config = RTCConfiguration({"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]})
 
-    # Start the webcam stream
-    webrtc_ctx = webrtc_streamer(
-        key="webcam-detection",
-        video_processor_factory=lambda: HairnetVideoProcessor(model, conf_threshold, iou_threshold),
-        rtc_configuration=rtc_config,
-        media_stream_constraints={"video": True, "audio": False},
-        async_processing=True,
-    )
+            # Start the webcam stream
+            webrtc_ctx = webrtc_streamer(
+                key="webcam-detection",
+                video_processor_factory=lambda: HairnetVideoProcessor(model, conf_threshold, iou_threshold),
+                rtc_configuration=rtc_config,
+                media_stream_constraints={"video": True, "audio": False},
+                async_processing=True,
+            )
 
-    # Optional: show detection stats from the last processed frame
-    if webrtc_ctx.state.playing:
-        st.info("🎥 Streaming live – detection applied to every frame.")
-    else:
-        st.info("Click 'Start' to begin webcam detection.")
+            # Optional: show detection stats from the last processed frame
+            if webrtc_ctx.state.playing:
+                st.info("🎥 Streaming live – detection applied to every frame.")
+            else:
+                st.info("Click 'Start' to begin webcam detection.")
     # ------------------------------
     # Tab 2: Analytics Dashboard
     # ------------------------------
