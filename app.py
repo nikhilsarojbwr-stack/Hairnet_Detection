@@ -561,12 +561,12 @@ def main():
                             col1, col2 = st.columns(2)
                             with col1:
                                 st.markdown("**Original**")
-                                st.image(res["original_rgb"], use_container_width=True)
+                                st.image(res["original_rgb"], use_column_width=True)
                             with col2:
                                 st.markdown("**Annotated**")
-                                st.image(res["annotated_rgb"], use_container_width=True)
+                                st.image(res["annotated_rgb"], use_column_width=True)
                             if not res["detections_df"].empty:
-                                st.dataframe(res["detections_df"], use_container_width=True)
+                                st.dataframe(res["detections_df"], use_column_width=True)
                             else:
                                 st.warning("No detections above confidence threshold.")
 
@@ -923,43 +923,46 @@ def main():
                     })
                     st.session_state.stream_stats = {"total": 0, "hairnet": 0, "no_hairnet": 0, "frames": 0}
 
-        # ------------------------------------------------------------
-        # Webcam (local camera_input snapshot)
-        # ------------------------------------------------------------
-        elif app_mode == "Webcam":
-            st.subheader("Live Webcam Detection")
-            st.warning("Webcam support requires a browser that allows camera access.")
-            run_webcam = st.checkbox("Enable Webcam")
-            if run_webcam:
-                # Use streamlit-webrtc? Or simple capture with OpenCV? 
-                # For simplicity, we'll use a button to capture a snapshot from webcam.
-                # Streamlit doesn't natively support webcam without extra components.
-                # We'll provide a fallback using st.camera_input (if available).
-                camera_image = st.camera_input("Take a picture")
-                if camera_image is not None:
-                    # Convert to numpy array
-                    img = Image.open(camera_image)
-                    img_np = np.array(img)
-                    img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+       elif app_mode == "Webcam":
+    st.subheader("Live Webcam Detection")
+    st.warning("Allow camera access when prompted. Detection runs in real‑time.")
+    
+    from streamlit_webrtc import webrtc_streamer, VideoProcessorBase, RTCConfiguration
 
-                    # Run inference
-                    results = model(img_bgr, conf=conf_threshold, iou=iou_threshold,
-                                    verbose=False)
-                    annotated_bgr = annotate_image(img_bgr, results, conf_threshold)
-                    annotated_rgb = cv2.cvtColor(annotated_bgr, cv2.COLOR_BGR2RGB)
+    # Define a video processor that runs YOLO on each frame
+    class HairnetVideoProcessor(VideoProcessorBase):
+        def __init__(self, model, conf_threshold, iou_threshold):
+            self.model = model
+            self.conf_threshold = conf_threshold
+            self.iou_threshold = iou_threshold
 
-                    st.image(annotated_rgb, caption="Detected", use_container_width=True)
+        def recv(self, frame):
+            # Convert frame to numpy array (BGR)
+            img = frame.to_ndarray(format="bgr24")
+            # Run inference
+            results = self.model(img, conf=self.conf_threshold, iou=self.iou_threshold, verbose=False)
+            # Annotate
+            annotated = annotate_image(img, results, self.conf_threshold)
+            # Return annotated frame
+            return frame.from_ndarray(annotated, format="bgr24")
 
-                    # Show detections
-                    detections_df = get_detections_dataframe(results, conf_threshold)
-                    display_metrics(detections_df)
-                    if not detections_df.empty:
-                        st.dataframe(detections_df, use_container_width=True)
-                else:
-                    st.info("Click the camera button to capture an image.")
-            else:
-                st.info("Check the box to enable webcam capture.")
+    # RTC configuration (TURN/STUN is optional for local webcam; we use default)
+    rtc_config = RTCConfiguration({"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]})
 
+    # Start the webcam stream
+    webrtc_ctx = webrtc_streamer(
+        key="webcam-detection",
+        video_processor_factory=lambda: HairnetVideoProcessor(model, conf_threshold, iou_threshold),
+        rtc_configuration=rtc_config,
+        media_stream_constraints={"video": True, "audio": False},
+        async_processing=True,
+    )
+
+    # Optional: show detection stats from the last processed frame
+    if webrtc_ctx.state.playing:
+        st.info("🎥 Streaming live – detection applied to every frame.")
+    else:
+        st.info("Click 'Start' to begin webcam detection.")
     # ------------------------------
     # Tab 2: Analytics Dashboard
     # ------------------------------
