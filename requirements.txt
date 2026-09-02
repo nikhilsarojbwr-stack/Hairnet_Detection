@@ -7,3 +7,4 @@ plotly==5.18.0
 ultralytics==8.2.0
 torch==2.2.2
 torchvision==0.17.2
+streamlit-webrtc==0.47.1
