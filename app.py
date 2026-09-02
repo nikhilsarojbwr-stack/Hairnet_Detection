@@ -19,7 +19,7 @@ import torch
 # ------------------------------
 # Configuration and Constants
 # ------------------------------
-MODEL_PATH = "models/best.pt"
+MODEL_PATH = "best.pt"
 OUTPUT_DIR = "outputs"
 IMAGE_OUTPUT_DIR = os.path.join(OUTPUT_DIR, "images")
 VIDEO_OUTPUT_DIR = os.path.join(OUTPUT_DIR, "videos")
