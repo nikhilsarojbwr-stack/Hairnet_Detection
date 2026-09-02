@@ -459,10 +459,10 @@ def main():
                 col1, col2 = st.columns(2)
                 with col1:
                     st.markdown("**Original Image**")
-                    st.image(image, use_container_width=True)
+                    st.image(image, use_column_width=True)
                 with col2:
                     st.markdown("**Annotated Image**")
-                    st.image(annotated_rgb, use_container_width=True)
+                    st.image(annotated_rgb, use_column_width=True)
 
                 # Detections DataFrame
                 detections_df = get_detections_dataframe(results, conf_threshold)
